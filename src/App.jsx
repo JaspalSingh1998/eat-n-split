@@ -25,39 +25,54 @@ function App() {
   const [toggleForm, setToggleForm] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState('');
 
+  const [friends, setFriends] = useState(initialFriends);
+
   const handleFormToggle = () => {
     setToggleForm((open) => !open);
+  }
+
+  const handleAddFriend = (newFriend) => {
+    setFriends([...friends, newFriend])
+    handleFormToggle();
+  }
+
+  const handleSelectedFriend = (id) => {
+    if(selectedFriend && selectedFriend.id === id) {
+      setSelectedFriend('');
+      return;
+    }
+    setSelectedFriend(friends.filter(friend => friend.id === id)[0]);
   }
 
   return (
     <div className="app">
       <div className="sidebar">
-        <FriendsList />
-        {toggleForm && <FormAddFriend /> }
+        <FriendsList friends={friends} selectedFriend={selectedFriend} selectFriend={handleSelectedFriend}/>
+        {toggleForm && <FormAddFriend addFriend={handleAddFriend}/> }
         <Button onPress={handleFormToggle}> {toggleForm ? 'Close' : 'Add Friend'} </Button>
       </div>
-      <FormSplitBill />
+      {selectedFriend && <FormSplitBill friend={selectedFriend}/>}
     </div>
   );
 }
 
-function FriendsList (){
-  const friends = initialFriends;
+function FriendsList ({friends, selectedFriend, selectFriend}){
   return <ul>
     {friends.map((friend) => (
-      <Friend friend={friend} key={friend.id}/>
+      <Friend friend={friend} key={friend.id} selectedFriend={selectedFriend} selectFriend={selectFriend}/>
     ))}
   </ul>
 }
 
-function Friend ({friend}){
-  return <li>
+function Friend ({friend, selectedFriend, selectFriend}){
+  const isSelected = selectedFriend.id === friend.id;
+  return <li className={isSelected ? 'selected': ''}>
     <img src={friend.image} alt={friend.name}/>
     <h3>{friend.name}</h3>
     { friend.balance < 0 && <p className="red">You owe {friend.name} {Math.abs(friend.balance)}$</p> }
     { friend.balance > 0 && <p className="green">{friend.name} owes you {Math.abs(friend.balance)}$</p> }
     { friend.balance === 0 && <p>You and {friend.name} are even.</p> }
-    <Button>Select</Button>
+    <Button onPress={() => selectFriend(friend.id)}>{isSelected ? 'Close' : 'Select'}</Button>
   </li>
 }
 
@@ -65,21 +80,43 @@ function Button({children, onPress}) {
   return  <button className="button" onClick={onPress}>{children}</button>
 }
 
-function FormAddFriend () {
-  return <form className="form-add-friend">
+function FormAddFriend ({addFriend}) {
+  const [name, setName] = useState('');
+  const [image, setImage] = useState('https://i.pravatar.cc/48');
+
+
+  const handleSubmit = e => {
+    e.preventDefault();
+    const id = crypto.randomUUID();
+
+    if (!name || !image) return;
+
+    const newFriend = {
+      name,
+      image:  `${image}?=${id}`,
+      balance: 0,
+      id
+    }
+    setName('');
+    setImage('https://i.pravatar.cc/48');
+    addFriend(newFriend);
+  }
+
+  return <form className="form-add-friend" onSubmit={handleSubmit}>
     <label>👫 Friend Name</label>
-    <input type="text" />
+    <input type="text" onChange={e => setName(e.target.value)} value={name}/>
 
     <label>🌄 Image URL</label>
-    <input type="text" />
+    <input type="text" onChange={e => setImage(e.target.value)} value={image}/>
 
    <Button>Add</Button>
   </form>
 }
 
-function FormSplitBill () {
+function FormSplitBill ({friend}) {
+  console.log(friend);
   return <form className="form-split-bill">
-    <h2>Split a bill with X</h2>
+    <h2>Split a bill with {friend.name}</h2>
 
     <label>💰 Bill Value</label>
     <input type="number" />
@@ -87,13 +124,13 @@ function FormSplitBill () {
     <label>🧍‍♂️ Your Expense</label>
     <input type="number" />
 
-    <label>👫 X's Expense</label>
+    <label>👫 {friend.name}'s Expense</label>
     <input type="number" disabled/>
 
     <label>🤑 Who is paying the bill?</label>
     <select>
       <option value="user">You</option>
-      <option value="friend">X</option>
+      <option value="friend">{friend.name}</option>
     </select>
 
     <Button>Split Bill</Button>
